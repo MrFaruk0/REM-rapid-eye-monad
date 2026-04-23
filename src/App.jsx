@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMonad } from "./hooks/useMonad";
 import { useBrain } from "./hooks/useBrain";
+import ConnectPage from "./components/ConnectPage";
 import BrainAvatar from "./components/BrainAvatar";
 import MapGrid from "./components/MapGrid";
 import InnerVoicePanel from "./components/InnerVoicePanel";
@@ -9,335 +10,215 @@ import DailyTask from "./components/DailyTask";
 import DreamHistory from "./components/DreamHistory";
 import "./index.css";
 
-// Arka plan parçacıkları
-function Particles({ count = 30, isNight }) {
-  const particles = Array.from({ length: count }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 3 + 1,
-    delay: Math.random() * 4,
-    dur: Math.random() * 3 + 2,
-  }));
+const GUEST = "guest"; // demo modunda sahte account
 
+/* ── Küçük arka plan noktaları ── */
+function BgDots() {
   return (
-    <div style={{
-      position: "fixed",
-      inset: 0,
-      pointerEvents: "none",
-      zIndex: 0,
-      overflow: "hidden",
-    }}>
-      {particles.map((p) => (
-        <div
-          key={p.id}
-          style={{
-            position: "absolute",
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: `${p.size}px`,
-            height: `${p.size}px`,
-            borderRadius: "50%",
-            background: isNight
-              ? `rgba(249,115,22,${0.3 + Math.random() * 0.4})`
-              : `rgba(124,58,237,${0.2 + Math.random() * 0.3})`,
-            animation: `twinkle ${p.dur}s ease-in-out ${p.delay}s infinite, float ${p.dur + 1}s ease-in-out ${p.delay}s infinite`,
-          }}
-        />
-      ))}
-    </div>
+    <svg style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0, opacity: 0.035 }} xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="bgdots" width="28" height="28" patternUnits="userSpaceOnUse">
+          <circle cx="1" cy="1" r="1" fill="#6d28d9" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#bgdots)" />
+    </svg>
   );
 }
 
 export default function App() {
-  const { account, connect, sendTx, isConnecting, error: monadError } = useMonad();
+  const { account, connect, disconnect, sendTx, isConnecting, error: monadError } = useMonad();
+  const [guestMode, setGuestMode] = useState(false);
+
+  // Aktif kimlik: MetaMask account veya guest modu
+  const activeAccount = account || (guestMode ? GUEST : null);
+  // TX sadece gerçek MetaMask ile
+  const activeSendTx = account ? sendTx : null;
   const {
-    events,
-    logs,
-    tokenTotal,
-    isNight,
-    currentDream,
-    dreams,
-    dailyTask,
-    taskCompleted,
-    isProcessing,
-    selectActivity,
-  } = useBrain(account ? sendTx : null);
+    events, logs, tokenTotal, isNight, currentDream,
+    dreams, dailyTask, taskCompleted, isProcessing,
+    selectActivity, wakeUp, tokenLimit,
+  } = useBrain(activeSendTx);
 
-  const [showNightOverlay, setShowNightOverlay] = useState(false);
+  const [nightOverlay, setNightOverlay] = useState(false);
 
-  // Gece modu overlay efekti
   useEffect(() => {
-    if (isNight) {
-      setShowNightOverlay(true);
-      const t = setTimeout(() => setShowNightOverlay(false), 2000);
-      return () => clearTimeout(t);
-    }
+    if (isNight) { setNightOverlay(true); const t = setTimeout(() => setNightOverlay(false), 2200); return () => clearTimeout(t); }
   }, [isNight]);
 
-  const tokenLimitReached = tokenTotal >= 500;
+  // Cüzdan bağlı değil ve guest mod da seçilmediyse ConnectPage göster
+  if (!activeAccount) {
+    return (
+      <ConnectPage
+        onConnect={connect}
+        onGuest={() => setGuestMode(true)}
+        isConnecting={isConnecting}
+        error={monadError}
+      />
+    );
+  }
+
+  const tokenPct = Math.min((tokenTotal / tokenLimit) * 100, 100);
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: isNight
-        ? "radial-gradient(ellipse at top, #1a0a00 0%, #070711 50%)"
-        : "radial-gradient(ellipse at top, #0d0520 0%, #070711 60%)",
-      position: "relative",
-      transition: "background 1s ease",
-    }}>
-      {/* Arka plan parçacıkları */}
-      <Particles count={25} isNight={isNight} />
-      <div className="noise-overlay" />
+    <div style={{ minHeight: "100vh", background: isNight ? "#060609" : "var(--bg)", transition: "background 1.2s", position: "relative" }}>
+      <BgDots />
 
       {/* Gece geçiş overlay */}
-      {showNightOverlay && (
+      {nightOverlay && (
         <div style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(249,115,22,0.08)",
-          zIndex: 100,
-          animation: "fadeIn 0.5s ease-in, fadeIn 1s ease-out reverse 1s",
-          pointerEvents: "none",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          position: "fixed", inset: 0, zIndex: 200, pointerEvents: "none",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(234,88,12,0.06)",
+          animation: "fadeIn 0.4s ease",
         }}>
           <div style={{
-            fontSize: "48px",
-            fontWeight: "900",
-            color: "#f97316",
-            letterSpacing: "4px",
-            textShadow: "0 0 40px rgba(249,115,22,0.8)",
-            animation: "pulse 0.5s ease-in-out infinite",
+            fontSize: "36px", fontWeight: "800", color: "#ea580c",
+            letterSpacing: "3px", animation: "nightSlide 0.5s ease",
+            textShadow: "0 0 40px rgba(234,88,12,0.6)",
           }}>
             🌙 GECE BAŞLIYOR
           </div>
         </div>
       )}
 
-      {/* ═══════════════ MAIN CONTENT ═══════════════ */}
-      <div style={{
-        position: "relative",
-        zIndex: 1,
-        maxWidth: "1400px",
-        margin: "0 auto",
-        padding: "0 24px 40px",
-      }}>
+      {/* ══════════ MAIN ══════════ */}
+      <div style={{ position: "relative", zIndex: 1, maxWidth: "1360px", margin: "0 auto", padding: "0 24px 48px" }}>
 
         {/* ── HEADER ── */}
         <header style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "20px 0 24px",
+          display: "flex", alignItems: "center", gap: "20px",
+          padding: "18px 0 20px",
           borderBottom: "1px solid var(--border)",
           marginBottom: "24px",
-          gap: "20px",
           flexWrap: "wrap",
         }}>
           {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginRight: "auto" }}>
             <div style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, #7c3aed, #4c1d95)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "22px",
-              boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
-            }}>
-              🧠
-            </div>
+              width: "36px", height: "36px", borderRadius: "10px",
+              background: "linear-gradient(135deg, #6d28d9, #4c1d95)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: "19px",
+            }}>🧠</div>
             <div>
-              <div style={{
-                fontSize: "20px",
-                fontWeight: "800",
-                letterSpacing: "-0.5px",
-                fontFamily: "'Space Grotesk', sans-serif",
-              }}>
-                <span className="text-gradient">BRAIN</span>
-                <span style={{ color: "var(--text)" }}> AGENT</span>
+              <div style={{ fontSize: "17px", fontWeight: "800", color: "var(--text)", letterSpacing: "-0.3px" }}>
+                Brain <span style={{ color: "#6d28d9" }}>Agent</span>
               </div>
-              <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "2px" }}>
-                MONAD TESTNET · AI NEURAL SIM
+              <div style={{ fontSize: "10px", color: "var(--text-3)", letterSpacing: "1.5px", textTransform: "uppercase" }}>
+                Monad Testnet
               </div>
             </div>
           </div>
 
-          {/* Token Bar */}
-          <div style={{ flex: 1, maxWidth: "300px" }}>
-            <TokenBar tokenTotal={tokenTotal} limit={500} />
+          {/* Token bar */}
+          <div style={{ minWidth: "220px" }}>
+            <TokenBar tokenTotal={tokenTotal} limit={tokenLimit} />
           </div>
 
-          {/* MetaMask bağlantı */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
-            {!account ? (
-              <button
-                id="connect-wallet-btn"
-                onClick={connect}
-                disabled={isConnecting}
-                style={{
-                  padding: "10px 20px",
-                  background: "linear-gradient(135deg, #7c3aed, #5b21b6)",
-                  border: "none",
-                  borderRadius: "10px",
-                  color: "#fff",
-                  fontWeight: "700",
-                  fontSize: "13px",
-                  cursor: isConnecting ? "wait" : "pointer",
-                  transition: "all 0.2s",
-                  boxShadow: "0 4px 15px rgba(124,58,237,0.4)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-1px)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(124,58,237,0.5)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 15px rgba(124,58,237,0.4)";
-                }}
-              >
-                {isConnecting ? "⏳ Bağlanıyor..." : "🦊 MetaMask Bağla"}
-              </button>
-            ) : (
+          {/* Account / Guest badge */}
+          {account ? (
+            <div style={{
+              display: "flex", alignItems: "center", gap: "8px",
+              padding: "7px 12px",
+              background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "10px",
+            }}>
               <div style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "8px 14px",
-                background: "rgba(34,197,94,0.1)",
-                border: "1px solid rgba(34,197,94,0.3)",
-                borderRadius: "10px",
-              }}>
-                <div style={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  background: "#22c55e",
-                  boxShadow: "0 0 6px #22c55e",
-                  animation: "pulse 1.5s ease-in-out infinite",
-                }} />
-                <span style={{
-                  fontSize: "12px",
-                  fontFamily: "monospace",
-                  color: "#22c55e",
-                  fontWeight: "600",
-                }}>
-                  {account.slice(0, 6)}...{account.slice(-4)}
-                </span>
-              </div>
-            )}
-            {monadError && (
-              <span style={{ fontSize: "11px", color: "#ef4444", maxWidth: "220px", textAlign: "right" }}>
-                ⚠️ {monadError}
+                width: "7px", height: "7px", borderRadius: "50%", background: "#16a34a",
+                boxShadow: "0 0 5px #16a34a", animation: "pulse 2s ease-in-out infinite",
+              }} />
+              <span style={{ fontSize: "12px", fontFamily: "monospace", color: "#a5b4fc" }}>
+                {account.slice(0, 6)}…{account.slice(-4)}
               </span>
-            )}
-          </div>
+              <button onClick={disconnect} title="Bağlantıyı kes" style={{ marginLeft: "4px", background: "none", border: "none", color: "var(--text-2)", cursor: "pointer", fontSize: "12px", lineHeight: 1 }}>✕</button>
+            </div>
+          ) : (
+            <div style={{
+              display: "flex", alignItems: "center", gap: "8px",
+              padding: "7px 12px",
+              background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "10px",
+            }}>
+              <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#64748b" }} />
+              <span style={{ fontSize: "12px", color: "var(--text-2)" }}>Demo Modu</span>
+              <button onClick={() => setGuestMode(false)} title="Çık" style={{ marginLeft: "4px", background: "none", border: "none", color: "var(--text-2)", cursor: "pointer", fontSize: "12px", lineHeight: 1 }}>✕</button>
+            </div>
+          )}
         </header>
 
-        {/* ── AVATAR + DAILY TASK ── */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "24px",
-          marginBottom: "24px",
-          flexWrap: "wrap",
-        }}>
+        {/* ── AVATAR + TASK ROW ── */}
+        <div style={{ display: "flex", gap: "20px", alignItems: "center", marginBottom: "20px", flexWrap: "wrap" }}>
           <BrainAvatar isNight={isNight} isProcessing={isProcessing} />
-          <div style={{ flex: 1, minWidth: "280px" }}>
+
+          <div style={{ flex: 1, minWidth: "260px" }}>
             <DailyTask task={dailyTask} taskCompleted={taskCompleted} />
           </div>
 
           {/* Stats */}
-          <div style={{
-            display: "flex",
-            gap: "12px",
-            flexWrap: "wrap",
-          }}>
+          <div style={{ display: "flex", gap: "10px" }}>
             {[
-              { label: "Aktivite", value: events.length, icon: "⚡" },
-              { label: "Log", value: logs.length, icon: "📡" },
-              { label: "Rüya", value: dreams.length, icon: "🌙" },
-            ].map((stat) => (
-              <div key={stat.label} style={{
-                padding: "12px 16px",
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "12px",
-                textAlign: "center",
-                minWidth: "70px",
+              { v: events.length, l: "Aktivite", c: "#6d28d9" },
+              { v: logs.length,   l: "Log",      c: "#2563eb" },
+              { v: dreams.length, l: "Rüya",     c: "#ea580c" },
+            ].map(s => (
+              <div key={s.l} style={{
+                padding: "10px 14px", background: "var(--surface)",
+                border: "1px solid var(--border)", borderRadius: "12px", textAlign: "center", minWidth: "64px",
               }}>
-                <div style={{ fontSize: "18px" }}>{stat.icon}</div>
-                <div style={{
-                  fontSize: "20px",
-                  fontWeight: "800",
-                  color: "var(--purple-light)",
-                  fontFamily: "monospace",
-                  lineHeight: 1.2,
-                }}>
-                  {stat.value}
-                </div>
-                <div style={{ fontSize: "10px", color: "var(--muted)" }}>{stat.label}</div>
+                <div style={{ fontSize: "22px", fontWeight: "800", color: s.c, fontFamily: "monospace", lineHeight: 1.1 }}>{s.v}</div>
+                <div style={{ fontSize: "10px", color: "var(--text-2)", marginTop: "2px" }}>{s.l}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ── MAIN GRID: MapGrid + InnerVoice ── */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "20px",
-          marginBottom: "24px",
-        }}>
-          {/* Sol: MapGrid */}
-          <div style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "20px",
-            padding: "20px",
-          }}>
+        {/* ── MAP + INNER VOICE ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "18px", padding: "20px" }}>
             <MapGrid
               onActivitySelect={selectActivity}
               isProcessing={isProcessing}
               isNight={isNight}
-              tokenLimitReached={tokenLimitReached}
+              tokenLimitReached={tokenTotal >= tokenLimit}
             />
           </div>
-
-          {/* Sağ: InnerVoice */}
-          <div style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "20px",
-            padding: "20px",
-          }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "18px", padding: "20px" }}>
             <InnerVoicePanel logs={logs} />
           </div>
         </div>
 
         {/* ── DREAM HISTORY ── */}
-        <div style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: "20px",
-          padding: "24px",
-        }}>
+        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "18px", padding: "24px" }}>
           <DreamHistory dreams={dreams} currentDream={currentDream} />
         </div>
 
+        {/* ── WAKE UP BUTTON (gece bittikten sonra) ── */}
+        {isNight && currentDream && (
+          <div style={{ textAlign: "center", marginTop: "24px", animation: "fadeIn 0.6s ease" }}>
+            <button
+              id="wake-up-btn"
+              onClick={wakeUp}
+              style={{
+                padding: "14px 40px",
+                background: "linear-gradient(135deg, #ea580c, #c2410c)",
+                border: "none", borderRadius: "14px",
+                color: "#fff", fontSize: "15px", fontWeight: "700",
+                cursor: "pointer", letterSpacing: "0.5px",
+                boxShadow: "0 6px 24px rgba(234,88,12,0.4)",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 10px 30px rgba(234,88,12,0.5)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(234,88,12,0.4)"; }}
+            >
+              ☀️ Uyan — Yeni Güne Başla
+            </button>
+            <p style={{ marginTop: "10px", fontSize: "12px", color: "var(--text-2)" }}>
+              Tokenler sıfırlanır, yeni görev gelir.
+            </p>
+          </div>
+        )}
+
         {/* ── FOOTER ── */}
-        <footer style={{
-          marginTop: "24px",
-          textAlign: "center",
-          color: "var(--muted)",
-          fontSize: "11px",
-          letterSpacing: "1px",
-        }}>
-          BRAIN AGENT · MONAD BLITZ HACKATHON · Built with React + ethers.js + OpenRouter
+        <footer style={{ marginTop: "32px", textAlign: "center", fontSize: "11px", color: "var(--text-3)", letterSpacing: "1px" }}>
+          Brain Agent · Monad Blitz Hackathon · Vite + React + ethers.js
         </footer>
       </div>
     </div>

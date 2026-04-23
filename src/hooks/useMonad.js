@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ethers } from "ethers";
 
 const MONAD_CHAIN_ID = "0x279F"; // 10143
@@ -10,15 +10,33 @@ export function useMonad() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState(null);
 
+  // Sayfa yenilenince otomatik yeniden bağlan
+  useEffect(() => {
+    if (!window.ethereum) return;
+    window.ethereum
+      .request({ method: "eth_accounts" })
+      .then((accounts) => {
+        if (accounts.length > 0) setAccount(accounts[0]);
+      })
+      .catch(() => {});
+
+    // Hesap değişikliğini dinle
+    const handleAccountsChanged = (accounts) => {
+      setAccount(accounts.length > 0 ? accounts[0] : null);
+    };
+    window.ethereum.on("accountsChanged", handleAccountsChanged);
+    return () => window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+  }, []);
+
   const connect = useCallback(async () => {
     if (!window.ethereum) {
-      setError("MetaMask bulunamadı. Lütfen MetaMask yükle.");
+      setError("MetaMask bulunamadı.");
       return null;
     }
     setIsConnecting(true);
     setError(null);
     try {
-      // Monad testnet ekle
+      // Monad testnet ekle / switch et
       try {
         await window.ethereum.request({
           method: "wallet_addEthereumChain",
@@ -31,43 +49,43 @@ export function useMonad() {
           }],
         });
       } catch {
-        // Zincir zaten ekli olabilir, devam et
+        // zaten ekli
       }
-
       const provider = new ethers.BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
       setAccount(accounts[0]);
       return accounts[0];
     } catch (err) {
-      setError("Bağlantı reddedildi: " + err.message);
+      setError("Bağlantı reddedildi.");
       return null;
     } finally {
       setIsConnecting(false);
     }
   }, []);
 
+  const disconnect = useCallback(() => {
+    setAccount(null);
+  }, []);
+
+  // Her aktivite başına 0.000001 MON (demo için görünür miktar)
   const sendTx = useCallback(async (tokensUsed) => {
-    if (!window.ethereum || !account) return null;
+    if (!window.ethereum) return null;
+    const acc = account || (await window.ethereum.request({ method: "eth_accounts" }))[0];
+    if (!acc) return null;
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-
-      // tokens_used * 0.000000001 MON (minimum anlamlı miktar)
-      const amountInWei = ethers.parseEther(
-        (tokensUsed * 0.000000001).toFixed(18)
-      );
-
-      const tx = await signer.sendTransaction({
-        to: RECEIVER,
-        value: amountInWei,
-      });
-
+      // 0.000001 MON * tokensUsed/100 — MetaMask'ta görünür olacak kadar
+      const amount = Math.max(tokensUsed * 0.000001, 0.000001);
+      const amountWei = ethers.parseEther(amount.toFixed(18).replace(/\.?0+$/, "").slice(0, 20));
+      const tx = await signer.sendTransaction({ to: RECEIVER, value: amountWei });
+      await tx.wait(1); // 1 blok bekle
       return tx.hash;
     } catch (err) {
-      console.error("TX hatası:", err.message);
+      console.warn("TX hatası:", err.message);
       return null;
     }
   }, [account]);
 
-  return { account, connect, sendTx, isConnecting, error };
+  return { account, connect, disconnect, sendTx, isConnecting, error };
 }

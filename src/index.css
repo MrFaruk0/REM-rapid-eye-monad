@@ -1,152 +1,80 @@
-/* ===== Brain Agent — Global Styles ===== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
-/* ===== Design Tokens ===== */
+/* ── Tokens ── */
 :root {
-  --bg: #070711;
-  --surface: #0f0f1a;
-  --surface-2: #161625;
-  --purple: #7c3aed;
-  --purple-light: #a78bfa;
-  --blue: #3b82f6;
-  --orange: #f97316;
-  --green: #22c55e;
-  --text: #e2e8f0;
-  --muted: #64748b;
-  --border: rgba(255, 255, 255, 0.06);
+  --bg:        #08080f;
+  --surface:   #0e0e1c;
+  --surface2:  #131325;
+  --border:    #1a1d2e;
+  --border-hi: rgba(109,40,217,0.3);
+  --purple:    #6d28d9;
+  --purple-lo: #4c1d95;
+  --blue:      #2563eb;
+  --teal:      #0d9488;
+  --orange:    #ea580c;
+  --red:       #dc2626;
+  --green:     #16a34a;
+  --text:      #f0f0f8;
+  --text-2:    #8891a8;
+  --text-3:    #3d4460;
 }
 
-/* ===== Reset ===== */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 body {
-  background-color: var(--bg);
+  background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', -apple-system, sans-serif;
   font-size: 14px;
   line-height: 1.6;
-  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(124, 58, 237, 0.4);
-  border-radius: 2px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 58, 237, 0.7);
-}
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a1f5e; border-radius: 2px; }
 
-/* ===== Keyframe Animations ===== */
-
-/* Beyin nefes alma */
+/* ── Keyframes ── */
 @keyframes breathe {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
+  50%       { transform: scale(1.05); }
 }
-
-/* İşlem sırasında hızlı pulse */
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.04); opacity: 0.8; }
+  50%       { transform: scale(1.03); opacity: 0.8; }
 }
-
-/* Glow animasyonu */
 @keyframes glow {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.1); }
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.9; }
 }
-
-/* Log fade-in */
 @keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-/* Genel fade-in */
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
-
-/* Shimmer efekti */
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(150%); }
 }
-
-/* Gece modu yıldız arka plan */
-@keyframes twinkle {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+@keyframes pinPulse {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
 }
-
-/* Yüzen parçacıklar */
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-12px); }
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
 }
-
-/* Rotate animasyon */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; }
+  50%       { opacity: 0.5; }
 }
-
-/* Döngüsel büyüme */
-@keyframes ripple {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(2); opacity: 0; }
-}
-
-/* ===== Utility Classes ===== */
-.font-mono {
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.text-gradient {
-  background: linear-gradient(135deg, #a78bfa, #7c3aed);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.text-gradient-orange {
-  background: linear-gradient(135deg, #f97316, #ea580c);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* ===== Night Mode Global Override ===== */
-body.night-mode {
-  --bg: #040408;
-  --surface: #0a0a12;
-}
-
-/* ===== Noise texture overlay ===== */
-.noise-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.025;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  background-size: 200px 200px;
+@keyframes nightSlide {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

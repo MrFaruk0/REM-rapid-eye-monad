@@ -2,16 +2,15 @@
 export function buildDreamPrompt(memorySummary, dailyTask) {
   const taskText = dailyTask ? dailyTask.description : "a peaceful day";
   const base = memorySummary || "a day full of exploration and wonder";
-
-  // Sürrealist sahne oluştur
-  const prompt = `Surrealist dreamscape, glowing neural networks in a deep purple cosmos, ` +
-    `${base.slice(0, 80)}, ethereal floating memories, bioluminescent particles, ` +
-    `cinematic lighting, ultra detailed, digital art, 8k`;
-
-  return prompt;
+  return (
+    `Surrealist dreamscape, glowing neural networks in deep purple cosmos, ` +
+    `${base.slice(0, 70)}, ethereal floating memories, bioluminescent particles, ` +
+    `cinematic lighting, ultra detailed digital art, 8k`
+  );
 }
 
+// YENİ endpoint — image.pollinations.ai legacy çalışmıyor (auth sorunu)
 export function getPollinationsUrl(prompt) {
   const encoded = encodeURIComponent(prompt);
-  return `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&nologo=true&seed=${Date.now()}`;
+  return `https://pollinations.ai/p/${encoded}?width=800&height=500&seed=${Date.now()}&nologo=true`;
 }

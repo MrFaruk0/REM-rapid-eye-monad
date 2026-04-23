@@ -1,9 +1,10 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { runLogicAgent } from "../agents/LogicAgent";
 import { runMemoryAgent } from "../agents/MemoryAgent";
 import { runDreamAgent } from "../agents/DreamAgent";
-import { tokenCounter } from "../utils/tokenCounter";
 import { buildDreamPrompt, getPollinationsUrl } from "../utils/dreamPromptBuilder";
+
+const DAILY_TOKEN_LIMIT = 500;
 
 const DAILY_TASKS = [
   { id: 1, description: "Bu gece rüyanda yüz", targetActivity: "Yüzmek", reward: 10 },
@@ -11,17 +12,16 @@ const DAILY_TASKS = [
   { id: 3, description: "Eve dön ve dinlen", targetActivity: "Uyuklamak", reward: 10 },
 ];
 
-function getTodayTask() {
-  const dayIndex = Math.floor(Date.now() / 86400000) % DAILY_TASKS.length;
-  return DAILY_TASKS[dayIndex];
+function loadState() {
+  try {
+    return JSON.parse(localStorage.getItem("brain_state") || "{}");
+  } catch { return {}; }
 }
 
 function loadDreams() {
   try {
     return JSON.parse(localStorage.getItem("brain_dreams") || "[]");
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 function saveDream(dream) {
@@ -31,135 +31,132 @@ function saveDream(dream) {
 }
 
 export function useBrain(sendTx) {
-  const [events, setEvents] = useState([]);
-  const [logs, setLogs] = useState([]);
-  const [tokenTotal, setTokenTotal] = useState(0);
-  const [isNight, setIsNight] = useState(false);
-  const [currentDream, setCurrentDream] = useState(null);
-  const [dreams, setDreams] = useState(loadDreams);
-  const [dailyTask] = useState(getTodayTask);
-  const [taskCompleted, setTaskCompleted] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [memorySummary, setMemorySummary] = useState("");
+  const saved = loadState();
+
+  const [dayNumber, setDayNumber]         = useState(saved.dayNumber ?? 0);
+  const [events, setEvents]               = useState(saved.events ?? []);
+  const [logs, setLogs]                   = useState([]);
+  const [tokenTotal, setTokenTotal]       = useState(saved.tokenTotal ?? 0);
+  const [isNight, setIsNight]             = useState(saved.isNight ?? false);
+  const [currentDream, setCurrentDream]   = useState(saved.currentDream ?? null);
+  const [dreams, setDreams]               = useState(loadDreams);
+  const [taskCompleted, setTaskCompleted] = useState(saved.taskCompleted ?? false);
+  const [isProcessing, setIsProcessing]   = useState(false);
+  const [memorySummary, setMemorySummary] = useState(saved.memorySummary ?? "");
+
+  const dailyTask = DAILY_TASKS[dayNumber % DAILY_TASKS.length];
+
+  // State persist
+  useEffect(() => {
+    localStorage.setItem("brain_state", JSON.stringify({
+      dayNumber, events, tokenTotal, isNight,
+      currentDream, taskCompleted, memorySummary,
+    }));
+  }, [dayNumber, events, tokenTotal, isNight, currentDream, taskCompleted, memorySummary]);
 
   const addLog = useCallback((agent, message) => {
     setLogs((prev) => [
       { agent, message, timestamp: new Date(), id: Date.now() + Math.random() },
       ...prev,
-    ].slice(0, 50));
+    ].slice(0, 60));
   }, []);
 
+  // Yeni güne geç
+  const wakeUp = useCallback(() => {
+    setIsNight(false);
+    setEvents([]);
+    setTokenTotal(0);
+    setCurrentDream(null);
+    setTaskCompleted(false);
+    setMemorySummary("");
+    setDayNumber((d) => d + 1);
+    setLogs([]);
+    addLog("System", "☀️ Yeni gün başladı! Beyin taze ve hazır.");
+  }, [addLog]);
+
   const selectActivity = useCallback(async (location, activity) => {
-    if (isProcessing || tokenCounter.isLimitReached()) return;
+    if (isProcessing || isNight || tokenTotal >= DAILY_TOKEN_LIMIT) return;
     setIsProcessing(true);
 
-    addLog("System", `⚡ ${location} → ${activity} seçildi`);
+    addLog("System", `⚡ ${location} → ${activity}`);
 
     // 1. LogicAgent
-    addLog("Logic", "Beyin aktiviteyi analiz ediyor...");
-    const logicResult = await runLogicAgent({
-      location,
-      activity,
-      memoryContext: memorySummary,
-    });
+    addLog("Logic", "Analiz ediliyor...");
+    const logicResult = await runLogicAgent({ location, activity, memoryContext: memorySummary });
     addLog("Logic", logicResult.interpretation);
 
-    // 2. Yeni event oluştur
-    const newEvent = {
-      id: Date.now(),
-      location,
-      activity,
-      interpretation: logicResult.interpretation,
-      timestamp: new Date().toISOString(),
-    };
-
+    // 2. Event kaydet
+    const newEvent = { id: Date.now(), location, activity, interpretation: logicResult.interpretation, timestamp: new Date().toISOString() };
     const updatedEvents = [...events, newEvent];
     setEvents(updatedEvents);
 
     // 3. MemoryAgent
-    addLog("Memory", "Hafıza katmanı güncelleniyor...");
+    addLog("Memory", "Hafıza güncelleniyor...");
     const memResult = await runMemoryAgent({ events: updatedEvents });
     addLog("Memory", memResult.summary);
     setMemorySummary(memResult.summary);
 
-    // 4. Token hesapla
-    const totalUsed = logicResult.tokens_used + memResult.tokens_used;
-    const newTotal = tokenCounter.addTokens(totalUsed);
+    // 4. Token
+    const used = logicResult.tokens_used + memResult.tokens_used;
+    const newTotal = Math.min(tokenTotal + used, DAILY_TOKEN_LIMIT + 10);
     setTokenTotal(newTotal);
-    addLog("System", `🔥 ${totalUsed} token harcandı (Toplam: ${newTotal}/500)`);
+    addLog("System", `🔥 ${used} token (Toplam: ${newTotal}/${DAILY_TOKEN_LIMIT})`);
 
-    // 5. Monad TX
-    if (sendTx) {
+    // 5. Monad TX — sendTx her zaman dene
+    if (typeof sendTx === "function") {
       addLog("TX", "⛓️ Monad TX gönderiliyor...");
-      try {
-        const hash = await sendTx(totalUsed);
-        if (hash) {
-          addLog("TX", `✅ TX onaylandı: ${hash.slice(0, 10)}...${hash.slice(-6)}`);
-        } else {
-          addLog("TX", "⚠️ TX atlandı (MetaMask yok veya reddedildi)");
-        }
-      } catch {
-        addLog("TX", "⚠️ TX hatası, devam ediliyor");
+      const hash = await sendTx(used);
+      if (hash) {
+        addLog("TX", `✅ ${hash.slice(0, 10)}...${hash.slice(-6)}`);
+      } else {
+        addLog("TX", "⚠️ TX reddedildi veya hata");
       }
     }
 
-    // 6. Görev tamamlama kontrolü
+    // 6. Görev kontrolü
     if (!taskCompleted && activity === dailyTask.targetActivity) {
       setTaskCompleted(true);
       addLog("System", `🏆 Görev tamamlandı: "${dailyTask.description}"`);
-      if (sendTx) {
-        const rewardHash = await sendTx(dailyTask.reward);
-        if (rewardHash) {
-          addLog("TX", `🎁 Ödül TX: ${rewardHash.slice(0, 10)}...`);
-        }
+      if (typeof sendTx === "function") {
+        const rh = await sendTx(dailyTask.reward);
+        if (rh) addLog("TX", `🎁 Ödül TX: ${rh.slice(0, 10)}...`);
       }
     }
 
-    // 7. Token limiti dolunca gece başlasın
-    if (tokenCounter.isLimitReached() && !isNight) {
+    // 7. Gece tetikle
+    if (newTotal >= DAILY_TOKEN_LIMIT && !isNight) {
       setIsNight(true);
-      addLog("Dream", "🌙 Gece başlıyor... Rüya işleme başlatılıyor.");
+      addLog("Dream", "🌙 Token limiti doldu — Rüya işleme başlıyor...");
 
       setTimeout(async () => {
-        // DreamAgent
-        const dreamResult = await runDreamAgent({
-          memorySummary: memResult.summary,
-          dailyTask,
-        });
-        addLog("Dream", `💭 Rüya promptu: "${dreamResult.imagePrompt.slice(0, 60)}..."`);
+        addLog("Dream", "💭 DreamAgent çalışıyor...");
+        const dreamResult = await runDreamAgent({ memorySummary: memResult.summary, dailyTask });
+        addLog("Dream", `Prompt oluşturuldu: "${dreamResult.imagePrompt.slice(0, 50)}..."`);
 
-        const pollinationsUrl = getPollinationsUrl(dreamResult.imagePrompt);
-        const dreamEntry = {
+        const url = getPollinationsUrl(dreamResult.imagePrompt);
+        const entry = {
           id: Date.now(),
           date: new Date().toLocaleDateString("tr-TR"),
-          imageUrl: pollinationsUrl,
+          imageUrl: url,
           prompt: dreamResult.imagePrompt,
           task: dailyTask.description,
           taskCompleted,
           memorySummary: memResult.summary,
         };
-
-        setCurrentDream(dreamEntry);
-        saveDream(dreamEntry);
+        setCurrentDream(entry);
+        saveDream(entry);
         setDreams(loadDreams());
         addLog("Dream", "✨ Rüya görseli yükleniyor...");
-      }, 1500);
+      }, 1200);
     }
 
     setIsProcessing(false);
-  }, [isProcessing, events, memorySummary, sendTx, dailyTask, taskCompleted, isNight, addLog]);
+  }, [isProcessing, isNight, tokenTotal, events, memorySummary, sendTx, dailyTask, taskCompleted, addLog]);
 
   return {
-    events,
-    logs,
-    tokenTotal,
-    isNight,
-    currentDream,
-    dreams,
-    dailyTask,
-    taskCompleted,
-    isProcessing,
-    selectActivity,
-    memorySummary,
+    events, logs, tokenTotal, isNight, currentDream,
+    dreams, dailyTask, taskCompleted, isProcessing,
+    selectActivity, memorySummary, wakeUp,
+    tokenLimit: DAILY_TOKEN_LIMIT,
   };
 }

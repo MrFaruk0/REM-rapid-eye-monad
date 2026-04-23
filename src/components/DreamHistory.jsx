@@ -61,9 +61,18 @@ export default function DreamHistory({ dreams, currentDream, onMintNft, onClearA
             <img
               src={currentDream.imageUrl}
               alt="Dream visualization"
-              style={{ width: "100%", maxHeight: "400px", objectFit: "cover", display: "block" }}
+              style={{ width: "100%", maxHeight: "400px", objectFit: "cover", display: "block", opacity: 0, transition: "opacity 0.5s" }}
               onLoad={(e) => { e.target.style.opacity = 1; }}
-              onError={(e) => { e.target.style.display = "none"; }}
+              onError={(e) => {
+                // Pollinations yavaş olabilir, 3sn sonra tekrar dene
+                const src = e.target.src;
+                if (!e.target.dataset.retried) {
+                  e.target.dataset.retried = "1";
+                  setTimeout(() => { e.target.src = ""; e.target.src = src; }, 3000);
+                } else {
+                  e.target.style.display = "none";
+                }
+              }}
             />
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "24px 16px 16px", background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent)" }}>
               <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", fontStyle: "italic", lineHeight: "1.5" }}>

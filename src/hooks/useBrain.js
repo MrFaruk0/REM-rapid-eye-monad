@@ -164,19 +164,18 @@ export function useBrain(sendTx) {
         
         let url = "";
         try {
-          addLog("Dream", "🎨 Puter.js ile sürreal görsel çiziliyor...");
-          const imageElement = await window.puter.ai.txt2img(dreamResult.imagePrompt.slice(0, 400));
-          
-          // Blob CORS hatasını önlemek için doğrudan kaynağı kullanıyoruz.
-          url = imageElement.src;
-
+          addLog("Dream", "🎨 Puter.js ile rüya görseli üretiliyor...");
+          const prompt = dreamResult.imagePrompt.slice(0, 500);
+          const img = await puter.ai.txt2img(prompt);
+          url = img.src;
+          addLog("Dream", "✅ Görsel oluşturuldu!");
         } catch (err) {
-          console.error("Puter AI Hatası:", err);
-          addLog("Dream", "⚠️ Görsel oluşturulamadı. Hafıza karanlıkta kayboldu...");
-          url = "https://placehold.co/800x500/1a1a2e/ffffff?text=Visual+Cortex+Offline";
+          console.error("Görsel üretim hatası:", err?.message || err);
+          addLog("Dream", `⚠️ Görsel üretilemedi: ${err?.message}`);
+          url = "";
         }
 
-        addLog("Dream", `✨ Rüya görseli oluşturuldu! Seviye: ${tier.label} ${tier.icon}`);
+        addLog("Dream", `✨ Rüya tamamlandı! Seviye: ${tier.label} ${tier.icon}`);
 
         const entry = {
           id: Date.now(),

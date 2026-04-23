@@ -7,7 +7,6 @@ import { getDreamTier } from "../utils/sleepSystem";
 const URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "mistralai/mistral-7b-instruct:free";
 const KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const IMG_KEY = import.meta.env.VITE_POLLINATIONS_API_KEY;
 
 const SYSTEM_PROMPT = `Sen beynin görsel rüya motorusun (Visual Cortex & Subconscious).
 Günün hafıza narratifini ve mevcut rüya görevini (daily task) alarak:

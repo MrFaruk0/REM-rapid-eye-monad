@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function DreamHistory({ dreams, currentDream, onMintNft }) {
+export default function DreamHistory({ dreams, currentDream, onMintNft, onClearArchive }) {
   const [selected, setSelected] = useState(null);
 
   const allDreams = dreams || [];
@@ -14,11 +14,29 @@ export default function DreamHistory({ dreams, currentDream, onMintNft }) {
             {allDreams.length} kayıt
           </span>
         </h3>
-        {currentDream?.tier && (
-          <div style={{ fontSize: "10px", fontWeight: "700", color: currentDream.tier.color, background: `${currentDream.tier.color}20`, padding: "4px 8px", borderRadius: "8px", border: `1px solid ${currentDream.tier.color}40` }}>
-            {currentDream.tier.icon} {currentDream.tier.label}
-          </div>
-        )}
+        
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {allDreams.length > 0 && onClearArchive && (
+            <button
+              onClick={onClearArchive}
+              style={{
+                background: "transparent", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "8px",
+                color: "#ef4444", fontSize: "10px", fontWeight: "700", padding: "4px 8px", cursor: "pointer",
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              🗑️ Arşivi Temizle
+            </button>
+          )}
+
+          {currentDream?.tier && (
+            <div style={{ fontSize: "10px", fontWeight: "700", color: currentDream.tier.color, background: `${currentDream.tier.color}20`, padding: "4px 8px", borderRadius: "8px", border: `1px solid ${currentDream.tier.color}40` }}>
+              {currentDream.tier.icon} {currentDream.tier.label}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Aktif rüya — büyük gösterim */}

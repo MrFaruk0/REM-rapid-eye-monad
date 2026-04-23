@@ -22,8 +22,8 @@ export default function AgentChat({ logs }) {
   const chatLogs = [...logs].reverse();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "360px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", maxHeight: "380px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", flexShrink: 0 }}>
         <h3 style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", letterSpacing: "2px", textTransform: "uppercase", margin: 0 }}>
           Neural Network Chat
         </h3>

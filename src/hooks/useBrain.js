@@ -4,7 +4,6 @@ import DreamSoulArtifact from "../utils/DreamSoul.json";
 import { runLogicAgent } from "../agents/LogicAgent";
 import { runMemoryAgent } from "../agents/MemoryAgent";
 import { runDreamAgent } from "../agents/DreamAgent";
-import { getPollinationsUrl } from "../utils/dreamPromptBuilder";
 import { getActivitySleepEffect, applyTierToLimit, getDreamTier } from "../utils/sleepSystem";
 
 const BASE_DAILY_LIMIT = 500;
@@ -81,11 +80,26 @@ export function useBrain(sendTx) {
     if (isProcessing || isNight || tokenTotal >= tokenLimit) return;
     setIsProcessing(true);
 
-    addLog("System", `⚡ ${location} bölgesinde "${activity}" eylemi başlatıldı`);
+    // 0. Ödeme İşlemi (MetaMask TX)
+    let baseTokenCost = 120; // Tahmini token maliyeti (Logic + Memory ortalaması)
+    if (typeof sendTx === "function") {
+      addLog("System", `💸 "${activity}" için cüzdan onayı bekleniyor...`);
+      const hash = await sendTx(baseTokenCost);
+      if (!hash) {
+        addLog("TX", "⚠️ Ödeme reddedildi. Aktivite iptal edildi.");
+        setIsProcessing(false);
+        return;
+      }
+      addLog("TX", `✅ Ödeme alındı: ${hash.slice(0, 10)}...${hash.slice(-6)}`);
+    }
 
     // 1. LogicAgent
-    addLog("Logic", "Aktivite işleniyor...");
+    addLog("System", `⚡ ${location} bölgesinde "${activity}" eylemi başlatıldı`);
+    await new Promise(r => setTimeout(r, 800));
+    addLog("Logic", "Aktivite analiz ediliyor...");
+    
     const logicResult = await runLogicAgent({ location, activity, sleepQuality, previousContext: memorySummary });
+    await new Promise(r => setTimeout(r, 1000));
     addLog("Logic", logicResult.interpretation, { event: logicResult.event });
 
     const newEvent = { id: Date.now(), location, activity, logic: logicResult, timestamp: new Date().toISOString() };
@@ -93,8 +107,11 @@ export function useBrain(sendTx) {
     setEvents(updatedEvents);
 
     // 2. MemoryAgent
-    addLog("Memory", "Hafıza güncelleniyor...");
+    await new Promise(r => setTimeout(r, 1000));
+    addLog("Memory", "Bu anı hafızaya yazılıyor...");
     const memResult = await runMemoryAgent({ logicOutput: logicResult, allEvents: updatedEvents });
+    
+    await new Promise(r => setTimeout(r, 1000));
     addLog("Memory", memResult.narrative, { tone: memResult.emotionalTone, score: memResult.dayScore });
     setMemorySummary(memResult.narrative);
 
@@ -104,29 +121,32 @@ export function useBrain(sendTx) {
     setSleepQuality(newQuality);
     if (sleepEffect !== 0) addLog("System", `Uyku kalitesi ${sleepEffect > 0 ? "arttı" : "azaldı"} (${newQuality}/100)`);
 
-    // 3. Token hesabı ve TX
+    // 3. Token hesabı (Sadece UI/Limit hesabı için, ödeme önden alındı)
     // Gerçek API harcaması x Olay çarpanı (Şans faktörü)
     const rawTokens = logicResult.tokens_used + memResult.tokens_used;
     const finalTokens = Math.round(rawTokens * logicResult.tokenMultiplier);
     
     const newTotal = Math.min(tokenTotal + finalTokens, tokenLimit + 10);
     setTokenTotal(newTotal);
-    addLog("System", `🔥 ${finalTokens} token yakıldı (Çarpan: ${logicResult.tokenMultiplier}x) — ${newTotal}/${tokenLimit}`);
-
-    if (typeof sendTx === "function") {
-      const hash = await sendTx(finalTokens);
-      if (hash) addLog("TX", `✅ ${hash.slice(0, 10)}...${hash.slice(-6)}`);
-      else addLog("TX", "⚠️ TX reddedildi veya hata");
-    }
+    addLog("System", `🔥 ${finalTokens} token yakıldı (Önden ödenen: ${baseTokenCost}) — ${newTotal}/${tokenLimit}`);
 
     // 4. Gece kontrolü
     if (newTotal >= tokenLimit && !isNight) {
-      setIsNight(true);
-      addLog("Dream", "🌙 Token limiti doldu — Uyku evresine geçiliyor...");
+      await enterSleepPhase(newTotal, newQuality, memResult.narrative);
+    }
 
-      setTimeout(async () => {
-        addLog("Dream", "💭 DreamAgent hafızayı rüyaya dönüştürüyor...");
-        const dreamResult = await runDreamAgent({ memoryNarrative: memResult.narrative, dailyTask: dailyTask, sleepQuality: newQuality });
+    setIsProcessing(false);
+  }, [isProcessing, isNight, tokenTotal, tokenLimit, events, memorySummary, sleepQuality, sendTx, addLog]);
+
+  const enterSleepPhase = async (currentTokens, currentQuality, memNarrative) => {
+    setIsNight(true);
+    addLog("Dream", "🌙 Yorgunluk zirvede — Uyku evresine geçiliyor...");
+
+    setTimeout(async () => {
+      addLog("Dream", "💭 Günün anılarından rüya sentezleniyor...");
+      const dreamResult = await runDreamAgent({ memoryNarrative: memNarrative, dailyTask: dailyTask, sleepQuality: currentQuality });
+      
+      await new Promise(r => setTimeout(r, 1500));
         
         // Task match check
         let isTaskDone = false;
@@ -139,11 +159,25 @@ export function useBrain(sendTx) {
           addLog("System", `❌ Görev başarısız. Rüya teması uyumsuz.`);
         }
 
-        const tier = getDreamTier(newQuality);
+        const tier = getDreamTier(currentQuality);
         setPrevTier(tier.key); // Sonraki gün limitini etkiler
+        
+        let url = "";
+        try {
+          addLog("Dream", "🎨 Puter.js ile sürreal görsel çiziliyor...");
+          const imageElement = await window.puter.ai.txt2img(dreamResult.imagePrompt.slice(0, 400));
+          
+          // Blob CORS hatasını önlemek için doğrudan kaynağı kullanıyoruz.
+          url = imageElement.src;
+
+        } catch (err) {
+          console.error("Puter AI Hatası:", err);
+          addLog("Dream", "⚠️ Görsel oluşturulamadı. Hafıza karanlıkta kayboldu...");
+          url = "https://placehold.co/800x500/1a1a2e/ffffff?text=Visual+Cortex+Offline";
+        }
+
         addLog("Dream", `✨ Rüya görseli oluşturuldu! Seviye: ${tier.label} ${tier.icon}`);
 
-        const url = getPollinationsUrl(dreamResult.imagePrompt);
         const entry = {
           id: Date.now(),
           date: new Date().toLocaleDateString("tr-TR"),
@@ -151,17 +185,22 @@ export function useBrain(sendTx) {
           prompt: dreamResult.imagePrompt,
           task: dailyTask.description,
           taskCompleted: isTaskDone,
-          memorySummary: memResult.narrative,
+          memorySummary: memNarrative,
           tier: tier,
         };
         setCurrentDream(entry);
         saveDream(entry);
         setDreams(loadDreams());
       }, 1500);
-    }
+  };
 
+  const forceSleep = useCallback(async () => {
+    if (isProcessing || isNight) return;
+    setIsProcessing(true);
+    addLog("System", "💤 Kullanıcı kendi isteğiyle uykuya daldı.");
+    await enterSleepPhase(tokenTotal, sleepQuality, memorySummary);
     setIsProcessing(false);
-  }, [isProcessing, isNight, tokenTotal, tokenLimit, events, memorySummary, sleepQuality, sendTx, dailyTask, addLog]);
+  }, [isProcessing, isNight, tokenTotal, sleepQuality, memorySummary, addLog]);
 
   // NFT Minting fonksiyonu (Hardhat contract entegrasyonu)
   const mintNft = useCallback(async (dreamData) => {
@@ -196,7 +235,7 @@ export function useBrain(sendTx) {
       addLog("TX", "⚠️ NFT Mint işlemi başarısız veya reddedildi.");
       return null;
     }
-  }, [addLog]);
+  }, [addLog, contractAddress]);
 
   const buyMarketplaceItem = useCallback(async (item) => {
     if (typeof sendTx === "function") {
@@ -232,11 +271,18 @@ export function useBrain(sendTx) {
     }
   }, [addLog]);
 
+  const clearDreams = useCallback(() => {
+    localStorage.removeItem("brain_dreams");
+    setDreams([]);
+    // Gece döngüsünde uyan butonunun kaybolmaması için currentDream silinmez
+    addLog("System", "🧹 Rüya arşivi temizlendi.");
+  }, [addLog]);
+
   return {
     events, logs, tokenTotal, isNight, currentDream,
     dreams, dailyTask, taskCompleted, isProcessing,
     selectActivity, memorySummary, wakeUp, tokenLimit,
     sleepQuality, prevTier, mintNft, buyMarketplaceItem,
-    contractAddress, deployNftContract
+    contractAddress, deployNftContract, forceSleep, clearDreams
   };
 }

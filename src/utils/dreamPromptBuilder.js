@@ -7,11 +7,3 @@ export function buildDreamPrompt(memoryNarrative, dailyTask) {
     `cinematic lighting, ultra-detailed digital art, 8k, dreamlike atmosphere involving ${task}`
   );
 }
-
-export function getPollinationsUrl(prompt) {
-  const encoded = encodeURIComponent(prompt);
-  const seed = Math.floor(Math.random() * 1000000);
-  
-  // Ücretsiz ve her zaman çalışan endpoint (eski public endpoint)
-  return `https://pollinations.ai/p/${encoded}?width=800&height=500&seed=${seed}&nologo=true`;
-}

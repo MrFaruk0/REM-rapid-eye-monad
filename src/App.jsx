@@ -40,7 +40,7 @@ export default function App() {
     dreams, dailyTask, taskCompleted, isProcessing,
     selectActivity, wakeUp, tokenLimit,
     sleepQuality, prevTier, mintNft, buyMarketplaceItem,
-    contractAddress, deployNftContract
+    contractAddress, deployNftContract, forceSleep, clearDreams
   } = useBrain(activeSendTx);
 
   const [nightOverlay, setNightOverlay] = useState(false);
@@ -114,6 +114,44 @@ export default function App() {
             </div>
           </div>
 
+          <div style={{ flex: 1, minWidth: "260px", display: "flex", alignItems: "flex-end", flexDirection: "column", gap: "10px" }}>
+            {!isNight && tokenTotal > 0 && (
+              <button
+                onClick={forceSleep}
+                disabled={isProcessing}
+                style={{
+                  background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.4)",
+                  borderRadius: "8px", color: "#ef4444", fontSize: "11px", fontWeight: "700",
+                  padding: "6px 12px", cursor: isProcessing ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", gap: "6px",
+                  opacity: isProcessing ? 0.5 : 1
+                }}
+              >
+                💤 Hemen Uyu
+              </button>
+            )}
+            
+            <div style={{ display: "flex", gap: "16px" }}>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  Aktivite
+                </div>
+                <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text)" }}>
+                  {events.length}
+                </div>
+              </div>
+              <div style={{ width: "1px", background: "var(--border)" }} />
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  Rüya Seviyesi
+                </div>
+                <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text)" }}>
+                  {prevTier || "-"}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Token bar & Uyku Kalitesi */}
           <div style={{ minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" }}>
             <TokenBar tokenTotal={tokenTotal} limit={tokenLimit} />
@@ -170,7 +208,7 @@ export default function App() {
 
           {/* Daily Task & Deploy Button */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-end" }}>
-            <DailyTask task={dailyTask} isCompleted={taskCompleted} />
+            <DailyTask task={dailyTask} taskCompleted={taskCompleted} />
             
             {activeAccount && activeAccount !== GUEST && !contractAddress && (
               <button
@@ -227,7 +265,7 @@ export default function App() {
 
         {/* ── DREAM HISTORY ── */}
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "18px", padding: "24px" }}>
-          <DreamHistory dreams={dreams} currentDream={currentDream} onMintNft={mintNft} />
+          <DreamHistory dreams={dreams} currentDream={currentDream} onMintNft={mintNft} onClearArchive={clearDreams} />
         </div>
 
         {/* ── WAKE UP BUTTON (gece bittikten sonra) ── */}
@@ -253,6 +291,15 @@ export default function App() {
             <p style={{ marginTop: "10px", fontSize: "12px", color: "var(--text-2)" }}>
               Tokenler sıfırlanır, yeni görev gelir.
             </p>
+          </div>
+        )}
+        
+        {/* Kurtarma Butonu (Kullanıcı arşivi sildiğinde gecede takılı kalırsa) */}
+        {isNight && !currentDream && (
+          <div style={{ textAlign: "center", marginTop: "24px" }}>
+            <button onClick={wakeUp} style={{ padding: "8px 16px", background: "#ef4444", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" }}>
+              ⚠️ Gece Döngüsünden Kurtul (Uyan)
+            </button>
           </div>
         )}
 

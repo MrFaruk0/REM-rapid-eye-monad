@@ -4,10 +4,11 @@ import { useBrain } from "./hooks/useBrain";
 import ConnectPage from "./components/ConnectPage";
 import BrainAvatar from "./components/BrainAvatar";
 import MapGrid from "./components/MapGrid";
-import InnerVoicePanel from "./components/InnerVoicePanel";
+import AgentChat from "./components/AgentChat";
 import TokenBar from "./components/TokenBar";
 import DailyTask from "./components/DailyTask";
 import DreamHistory from "./components/DreamHistory";
+import Marketplace from "./components/Marketplace";
 import "./index.css";
 
 const GUEST = "guest"; // demo modunda sahte account
@@ -38,9 +39,12 @@ export default function App() {
     events, logs, tokenTotal, isNight, currentDream,
     dreams, dailyTask, taskCompleted, isProcessing,
     selectActivity, wakeUp, tokenLimit,
+    sleepQuality, prevTier, mintNft, buyMarketplaceItem,
+    contractAddress, deployNftContract
   } = useBrain(activeSendTx);
 
   const [nightOverlay, setNightOverlay] = useState(false);
+  const [showMarket, setShowMarket] = useState(false);
 
   useEffect(() => {
     if (isNight) { setNightOverlay(true); const t = setTimeout(() => setNightOverlay(false), 2200); return () => clearTimeout(t); }
@@ -110,9 +114,25 @@ export default function App() {
             </div>
           </div>
 
-          {/* Token bar */}
-          <div style={{ minWidth: "220px" }}>
+          {/* Token bar & Uyku Kalitesi */}
+          <div style={{ minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" }}>
             <TokenBar tokenTotal={tokenTotal} limit={tokenLimit} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", color: "var(--text-2)", fontWeight: "600" }}>
+              <span>Uyku Kalitesi: <span style={{ color: sleepQuality > 80 ? "#10b981" : sleepQuality < 40 ? "#ef4444" : "#f59e0b" }}>{sleepQuality}</span>/100</span>
+              <button 
+                onClick={() => setShowMarket(true)}
+                style={{ 
+                  background: "linear-gradient(135deg, #7c3aed, #4f46e5)", border: "none", 
+                  borderRadius: "6px", color: "#fff", fontSize: "12px", fontWeight: "700",
+                  cursor: "pointer", padding: "4px 12px", boxShadow: "0 2px 8px rgba(124, 58, 237, 0.4)",
+                  transition: "all 0.2s" 
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+                onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+              >
+                🛒 Market
+              </button>
+            </div>
           </div>
 
           {/* Account / Guest badge */}
@@ -148,8 +168,28 @@ export default function App() {
         <div style={{ display: "flex", gap: "20px", alignItems: "center", marginBottom: "20px", flexWrap: "wrap" }}>
           <BrainAvatar isNight={isNight} isProcessing={isProcessing} />
 
-          <div style={{ flex: 1, minWidth: "260px" }}>
-            <DailyTask task={dailyTask} taskCompleted={taskCompleted} />
+          {/* Daily Task & Deploy Button */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-end" }}>
+            <DailyTask task={dailyTask} isCompleted={taskCompleted} />
+            
+            {activeAccount && activeAccount !== GUEST && !contractAddress && (
+              <button
+                onClick={deployNftContract}
+                style={{
+                  background: "rgba(245, 158, 11, 0.1)", border: "1px solid #f59e0b",
+                  borderRadius: "8px", color: "#f59e0b", fontSize: "11px", fontWeight: "700",
+                  padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px",
+                  animation: "pinPulse 2s infinite"
+                }}
+              >
+                ⚙️ NFT Contract Kurulumu Yap
+              </button>
+            )}
+            {contractAddress && (
+              <div style={{ fontSize: "10px", color: "#10b981", fontWeight: "600" }}>
+                ✅ NFT Contract: {contractAddress.slice(0,6)}...{contractAddress.slice(-4)}
+              </div>
+            )}
           </div>
 
           {/* Stats */}
@@ -181,13 +221,13 @@ export default function App() {
             />
           </div>
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "18px", padding: "20px" }}>
-            <InnerVoicePanel logs={logs} />
+            <AgentChat logs={logs} />
           </div>
         </div>
 
         {/* ── DREAM HISTORY ── */}
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "18px", padding: "24px" }}>
-          <DreamHistory dreams={dreams} currentDream={currentDream} />
+          <DreamHistory dreams={dreams} currentDream={currentDream} onMintNft={mintNft} />
         </div>
 
         {/* ── WAKE UP BUTTON (gece bittikten sonra) ── */}
@@ -218,9 +258,13 @@ export default function App() {
 
         {/* ── FOOTER ── */}
         <footer style={{ marginTop: "32px", textAlign: "center", fontSize: "11px", color: "var(--text-3)", letterSpacing: "1px" }}>
-          Brain Agent · Monad Blitz Hackathon · Vite + React + ethers.js
+          Brain Agent · Monad Blitz Hackathon · Vite + React + Hardhat + ethers.js
         </footer>
       </div>
+
+      {showMarket && (
+        <Marketplace onClose={() => setShowMarket(false)} onBuy={buyMarketplaceItem} />
+      )}
     </div>
   );
 }

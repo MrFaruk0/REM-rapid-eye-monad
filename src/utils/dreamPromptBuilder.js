@@ -1,16 +1,17 @@
-// Memory summary'den Pollinations için görsel prompt üretir
-export function buildDreamPrompt(memorySummary, dailyTask) {
-  const taskText = dailyTask ? dailyTask.description : "a peaceful day";
-  const base = memorySummary || "a day full of exploration and wonder";
+export function buildDreamPrompt(memoryNarrative, dailyTask) {
+  const task = dailyTask?.targetActivity || "exploration";
+  const base = memoryNarrative?.slice(0, 80) || "a surreal day";
   return (
-    `Surrealist dreamscape, glowing neural networks in deep purple cosmos, ` +
-    `${base.slice(0, 70)}, ethereal floating memories, bioluminescent particles, ` +
-    `cinematic lighting, ultra detailed digital art, 8k`
+    `Surrealist dreamscape: ${base}. ` +
+    `Glowing neural cosmos, deep purple void, bioluminescent memories floating like jellyfish, ` +
+    `cinematic lighting, ultra-detailed digital art, 8k, dreamlike atmosphere involving ${task}`
   );
 }
 
-// YENİ endpoint — image.pollinations.ai legacy çalışmıyor (auth sorunu)
 export function getPollinationsUrl(prompt) {
   const encoded = encodeURIComponent(prompt);
-  return `https://pollinations.ai/p/${encoded}?width=800&height=500&seed=${Date.now()}&nologo=true`;
+  const seed = Math.floor(Math.random() * 1000000);
+  
+  // Ücretsiz ve her zaman çalışan endpoint (eski public endpoint)
+  return `https://pollinations.ai/p/${encoded}?width=800&height=500&seed=${seed}&nologo=true`;
 }

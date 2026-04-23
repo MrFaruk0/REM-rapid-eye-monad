@@ -1,57 +1,77 @@
-// DreamAgent — gece çalışır, görsel prompt yazar
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+// DreamAgent — Beynin rüya üretim sistemi
+// INPUT: MemoryAgent'ın çıktısı + Daily Task
+// OUTPUT → Kullanıcıya görsel ve NFT fırsatı
+import { buildDreamPrompt } from "../utils/dreamPromptBuilder";
+import { getDreamTier } from "../utils/sleepSystem";
+
+const URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "mistralai/mistral-7b-instruct:free";
-const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const IMG_KEY = import.meta.env.VITE_POLLINATIONS_API_KEY;
 
-const MOCK_PROMPTS = [
-  "Surrealist dreamscape, glowing neural pathways in deep purple cosmos, floating memories like luminous bubbles, bioluminescent particles, cinematic lighting, ultra detailed digital art",
-  "Ethereal brain in a neon ocean, synapses firing like lightning storms, crystalline memories drifting through violet fog, hyperrealistic dreamlike atmosphere",
-  "A neural network garden in moonlight, thoughts blooming as iridescent flowers, memories woven into silver threads, cosmic purple sky, 8k digital painting",
-  "Deep dream sequence, fractured reality with glowing synaptic connections, abstract consciousness visualized as aurora borealis, ultra detailed surrealism",
-];
+const SYSTEM_PROMPT = `Sen beynin görsel rüya motorusun (Visual Cortex & Subconscious).
+Günün hafıza narratifini ve mevcut rüya görevini (daily task) alarak:
+1. Rüyayı betimleyen sürreal bir görsel prompt İngilizce (stable diffusion için uygun: "a surrealistic dreamscape of...")
+2. Rüyada günlük hedefin (task) yerine getirilip getirilmediğini belirle (true/false)
 
-export async function runDreamAgent({ memorySummary, dailyTask }) {
-  const mockPrompt = MOCK_PROMPTS[Math.floor(Math.random() * MOCK_PROMPTS.length)];
+YANIT FORMAT (kesinlikle bu JSON formatında yanıt ver):
+{"imagePrompt":"...","taskMatch":true}`;
 
-  if (!API_KEY || API_KEY === "buraya_kendi_anahtarini_ekle") {
-    return { imagePrompt: mockPrompt, tokens_used: 60 };
+function mockOutput(memoryNarrative, task) {
+  const isMatch = Math.random() > 0.3; // %70 ihtimalle eşleşsin mock'ta
+  return {
+    imagePrompt: buildDreamPrompt(memoryNarrative, task),
+    taskMatch: isMatch,
+    dreamTier: getDreamTier(60), // mock sleep quality
+    tokens_used: 60,
+  };
+}
+
+export async function runDreamAgent({ memoryNarrative, dailyTask, sleepQuality }) {
+  const taskDesc = dailyTask ? dailyTask.targetActivity : "bilinmiyor";
+
+  if (!KEY) {
+    const mock = mockOutput(memoryNarrative, dailyTask);
+    mock.dreamTier = getDreamTier(sleepQuality);
+    return mock;
   }
 
-  const taskText = dailyTask ? dailyTask.description : "a peaceful exploration";
-
   try {
-    const response = await fetch(OPENROUTER_URL, {
+    const res = await fetch(URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${API_KEY}`,
+        "Authorization": `Bearer ${KEY}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "http://localhost:5173",
         "X-Title": "Brain Agent",
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 150,
+        max_tokens: 250,
         messages: [
-          {
-            role: "system",
-            content: "You are a dream layer of a brain. Write a surrealist visual prompt in English for an AI image generator. Max 50 words. Include: surrealism, neural, cosmic, purple tones.",
-          },
+          { role: "system", content: SYSTEM_PROMPT },
           {
             role: "user",
-            content: `Memory summary: ${memorySummary}. Daily task: ${taskText}. Create a dream image prompt.`,
+            content: `Hafıza (Narrative): "${memoryNarrative}" | Hedef Görev: "${taskDesc}" — Rüyanın ana temasında bu hedefin yeri var mı? (taskMatch)`,
           },
         ],
       }),
     });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const raw = data.choices?.[0]?.message?.content || "{}";
+    const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || "{}");
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    const imagePrompt = data.choices?.[0]?.message?.content || mockPrompt;
-    const tokens_used = data.usage?.total_tokens || 60;
-
-    return { imagePrompt, tokens_used };
-  } catch (err) {
-    console.warn("DreamAgent API hatası, mock kullanılıyor:", err.message);
-    return { imagePrompt: mockPrompt, tokens_used: 60 };
+    return {
+      imagePrompt: parsed.imagePrompt || buildDreamPrompt(memoryNarrative, dailyTask),
+      taskMatch: parsed.taskMatch ?? false,
+      dreamTier: getDreamTier(sleepQuality),
+      tokens_used: data.usage?.total_tokens || 60,
+    };
+  } catch (e) {
+    console.warn("DreamAgent hata:", e.message);
+    const mock = mockOutput(memoryNarrative, dailyTask);
+    mock.dreamTier = getDreamTier(sleepQuality);
+    return mock;
   }
 }

@@ -201,37 +201,65 @@ export function useBrain(sendTx) {
     setIsProcessing(false);
   }, [isProcessing, isNight, tokenTotal, sleepQuality, memorySummary, addLog]);
 
-  // NFT Minting fonksiyonu (Hardhat contract entegrasyonu)
+  // NFT Minting fonksiyonu — contract yoksa önce deploy eder, sonra mint yapar
   const mintNft = useCallback(async (dreamData) => {
-    if (!window.ethereum) return null;
-    if (!contractAddress) {
-      addLog("System", "⚠️ NFT Kontratı henüz deploy edilmedi!");
+    if (!window.ethereum) {
+      addLog("TX", "⚠️ MetaMask bulunamadı.");
       return null;
     }
+
     try {
-      addLog("TX", "⛓️ NFT Mint işlemi başlatıldı...");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+
+      let addr = contractAddress;
+
+      // Kayıtlı adres varsa chain'de gerçekten var mı kontrol et
+      if (addr) {
+        const code = await provider.getCode(addr);
+        if (code === "0x") {
+          addLog("TX", "⚠️ Kayıtlı contract artık chain'de yok. Yeniden deploy ediliyor...");
+          addr = "";
+          setContractAddress("");
+        }
+      }
+
+      // Contract yoksa deploy et
+      if (!addr) {
+        addLog("TX", "⏳ Contract deploy ediliyor...");
+        const factory = new ethers.ContractFactory(DreamSoulArtifact.abi, DreamSoulArtifact.bytecode, signer);
+        const deployed = await factory.deploy();
+        await deployed.waitForDeployment();
+        addr = await deployed.getAddress();
+        setContractAddress(addr);
+        addLog("TX", `✅ Contract deploy edildi: ${addr.slice(0, 8)}...`);
+      }
+
+      addLog("TX", "⛓️ NFT Mint işlemi başlatıldı...");
+      const contract = new ethers.Contract(addr, DreamSoulArtifact.abi, signer);
       
-      const contract = new ethers.Contract(contractAddress, DreamSoulArtifact.abi, signer);
-      
-      // Metadata (basit JSON stringify)
+      // imageUrl base64 olabilir (çok büyük) — on-chain'e kısa referans koy
+      const imageRef = dreamData.imageUrl?.startsWith("data:")
+        ? `rem-dream://${dreamData.id}`          // base64 ise kısa ID
+        : (dreamData.imageUrl || `rem-dream://${dreamData.id}`); // URL ise direkt kullan
+
       const metadataUri = JSON.stringify({
         name: `REM Dream #${dreamData.id}`,
-        description: dreamData.memorySummary,
-        image: dreamData.imageUrl,
+        description: (dreamData.memorySummary || "").slice(0, 200),
+        image: imageRef,
         attributes: [{ trait_type: "Tier", value: dreamData.tier?.label || "Legendary" }]
       });
 
       const tx = await contract.mintDream(signer.address, metadataUri);
-      addLog("TX", `⏳ NFT Mint TX gönderildi...`);
+      addLog("TX", `⏳ TX gönderildi, blok bekleniyor...`);
       const receipt = await tx.wait(1);
       
-      addLog("TX", `💎 NFT Başarıyla Mintlendi! (Block: ${receipt.blockNumber})`);
+      addLog("TX", `💎 NFT Başarıyla Mintlendi! Block: ${receipt.blockNumber}`);
       return receipt.hash;
     } catch (e) {
-      console.error(e);
-      addLog("TX", "⚠️ NFT Mint işlemi başarısız veya reddedildi.");
+      const msg = e?.reason || e?.shortMessage || e?.message || "Bilinmeyen hata";
+      console.error("NFT Mint Hatası:", e);
+      addLog("TX", `⚠️ Mint başarısız: ${msg.slice(0, 120)}`);
       return null;
     }
   }, [addLog, contractAddress]);

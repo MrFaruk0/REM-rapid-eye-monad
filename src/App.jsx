@@ -106,7 +106,7 @@ export default function App() {
             }}>🧠</div>
             <div>
               <div style={{ fontSize: "17px", fontWeight: "800", color: "var(--text)", letterSpacing: "-0.3px" }}>
-                Brain <span style={{ color: "#6d28d9" }}>Agent</span>
+                REM — <span style={{ color: "#6d28d9" }}>Rapid Eye Monad</span>
               </div>
               <div style={{ fontSize: "10px", color: "var(--text-3)", letterSpacing: "1.5px", textTransform: "uppercase" }}>
                 Monad Testnet

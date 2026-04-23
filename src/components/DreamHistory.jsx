@@ -61,7 +61,7 @@ export default function DreamHistory({ dreams, currentDream, onMintNft, onClearA
             <img
               src={currentDream.imageUrl}
               alt="Dream visualization"
-              style={{ width: "100%", maxHeight: "400px", objectFit: "cover", display: "block", opacity: 0, transition: "opacity 0.5s" }}
+              style={{ width: "100%", maxHeight: "280px", objectFit: "contain", display: "block", opacity: 0, transition: "opacity 0.5s", background: "#0d0d1a" }}
               onLoad={(e) => { e.target.style.opacity = 1; }}
               onError={(e) => {
                 // Pollinations yavaş olabilir, 3sn sonra tekrar dene

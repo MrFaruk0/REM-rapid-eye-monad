@@ -3,8 +3,8 @@
 
 ---
 
-## PROJE: Brain Agent
-**Son güncelleme:** 2026-04-23 — v2.5 ✅
+## PROJE: Brain Agent (REM — Rapid Eye Monad)
+**Son güncelleme:** 2026-04-23 — v2.9 ✅
 
 ---
 
@@ -35,7 +35,10 @@
   - `modalities: ["image", "text"]` ile base64 data URL alınıyor
   - Puter.js ve Pollinations kod tabanından tamamen silindi
   - `index.html`'den `puter.js` script tag'i kaldırıldı
-- [x] DreamHistory img: opacity fade-in + 3sn retry logic mevcut.
+- [x] DreamHistory img: opacity fade-in mevcut. `objectFit: contain`, `maxHeight: 280px`, koyu arkaplan — görsel kanalda artık kırpılmıyor.
+- [x] Dream prompt güncellendi: artık aktiviteye odaklı, az sürreal (painterly/natural tone).
+- [x] **NFT Mint Düzeltildi (v2.9):** Puter.js görselı base64 data URL olarak döndürüyor. Bu string çok büyük olduğundan `metadataUri`'ye koyunca TX gas limitini aşıp `missing revert data` hatası veriyordu. Fixes: base64 ise `rem-dream://id` referansı yaz; description max 200 char ile sınırla.
+- [x] Logo güncellendi: "Brain Agent" → "REM — Rapid Eye Monad"
 
 ---
 
@@ -101,4 +104,4 @@ VITE_POLLINATION_API_KEY=sk_SWAErAYxnVLKIPEM5Viy6gEVl3ueTS3Y ✅ (authenticated 
 | `enter.pollinations.ai` — legacy endpoint mesajı | `image.pollinations.ai?key=...` kullan |
 | Puter `txt2img` → catch | Puter hesabı yoksa hata verir, fallback devreye girer |
 | Puter blob URL → localStorage'da bozulur | Puter data URL döndürüyor zaten (base64), sorun yok |
-| clearDreams → uyan butonu kayboluyor | currentDream silinmemeli, sadece brain_dreams temizlenmeli |
+| `missing revert data` NFT mint sırasında | localStorage'daki contractAddress chain'de yok (testnet reset). `provider.getCode` ile kontrol et, "0x" ise yeniden deploy et |

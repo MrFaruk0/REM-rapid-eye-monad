@@ -1,9 +1,9 @@
 export function buildDreamPrompt(memoryNarrative, dailyTask) {
-  const task = dailyTask?.targetActivity || "exploration";
-  const base = memoryNarrative?.slice(0, 80) || "a surreal day";
+  const task = dailyTask?.targetActivity || "resting";
+  const base = memoryNarrative?.slice(0, 100) || "a calm day";
   return (
-    `Surrealist dreamscape: ${base}. ` +
-    `Glowing neural cosmos, deep purple void, bioluminescent memories floating like jellyfish, ` +
-    `cinematic lighting, ultra-detailed digital art, 8k, dreamlike atmosphere involving ${task}`
+    `A vivid dream illustration: A person is ${task.toLowerCase()} in a peaceful, slightly magical environment. ` +
+    `The scene reflects the day's experiences: ${base}. ` +
+    `Warm natural lighting, painterly style, detailed environment, serene mood, cinematic composition.`
   );
 }

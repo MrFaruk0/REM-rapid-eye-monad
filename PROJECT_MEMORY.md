@@ -4,7 +4,7 @@
 ---
 
 ## PROJE: Brain Agent (REM — Rapid Eye Monad)
-**Son güncelleme:** 2026-04-23 — v2.9 ✅
+**Son güncelleme:** 2026-04-23 — v2.10 ✅
 
 ---
 
@@ -39,6 +39,7 @@
 - [x] Dream prompt güncellendi: artık aktiviteye odaklı, az sürreal (painterly/natural tone).
 - [x] **NFT Mint Düzeltildi (v2.9):** Puter.js görselı base64 data URL olarak döndürüyor. Bu string çok büyük olduğundan `metadataUri`'ye koyunca TX gas limitini aşıp `missing revert data` hatası veriyordu. Fixes: base64 ise `rem-dream://id` referansı yaz; description max 200 char ile sınırla.
 - [x] Logo güncellendi: "Brain Agent" → "REM — Rapid Eye Monad"
+- [x] **BrainAvatar Güncellendi (v2.10):** SVG tabanlı nefes alan beyin yerine, `brain_moring.png` ve `brain_night.png` statik görselleri eklendi (shadow/glow efektleri korundu).
 
 ---
 
